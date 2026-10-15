@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
@@ -20,6 +20,10 @@ export const metadata: Metadata = {
     "Evening wear, made to order in a London studio. Delivered to the UK and the EU.",
 };
 
+export const viewport: Viewport = {
+  themeColor: "#F6F1EA",
+};
+
 const nav = [
   { href: "/#ready-to-ship", label: "Shop" },
   { href: "/#occasions", label: "Occasions" },
@@ -33,6 +37,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${cormorant.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-ivory text-ink">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-10 focus:flex focus:min-h-11 focus:items-center focus:bg-ivory focus:px-4 focus:text-[13px] focus:tracking-[0.06em]"
+        >
+          Skip to content
+        </a>
         <header className="border-b border-stone">
           <div className="mx-auto flex w-full max-w-6xl flex-col px-5 pt-4 md:flex-row md:items-center md:justify-between md:px-10 md:py-2">
             <Link
@@ -58,12 +68,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
 
-        <main className="flex-1">{children}</main>
+        <main id="main" className="flex-1">
+          {children}
+        </main>
 
         <footer className="border-t border-stone">
-          <div className="mx-auto w-full max-w-6xl px-5 py-12 md:px-10">
+          <div className="mx-auto w-full max-w-6xl px-5 py-10 md:px-10">
             <p className="font-serif text-2xl tracking-[0.04em]">Velmora</p>
-            <p className="mt-3 text-sm text-ink/70">
+            <p className="mt-2 text-sm text-ink/70">
               Evening wear, made to order in London.
               <br />
               Shipped to the UK and the EU.

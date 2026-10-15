@@ -11,18 +11,18 @@ export default function EmailSignup() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 max-w-md">
+    <form onSubmit={handleSubmit} className="mt-10 max-w-md">
       <label htmlFor="signup-email" className="block text-[13px] tracking-[0.06em]">
         Email address
       </label>
-      <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-2 flex flex-col gap-4 sm:flex-row">
         <input
           id="signup-email"
           name="email"
           type="email"
           autoComplete="email"
           required
-          className="min-h-12 flex-1 border border-ink/40 bg-transparent px-4 text-base focus:border-ink"
+          className="min-h-12 flex-1 border border-ink/70 bg-transparent px-4 text-base focus:border-ink"
         />
         <button
           type="submit"
@@ -31,7 +31,7 @@ export default function EmailSignup() {
           Sign up
         </button>
       </div>
-      <p aria-live="polite" className="mt-3 min-h-6 text-sm text-ink/70">
+      <p aria-live="polite" className="mt-2 min-h-6 text-sm text-ink/70">
         {submitted ? "This is a concept site. Nothing was sent." : ""}
       </p>
     </form>

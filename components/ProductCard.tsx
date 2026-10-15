@@ -11,7 +11,7 @@ export default function ProductCard({ product }: { product: Product }) {
         aria-label={`Placeholder image for ${label}`}
         className="aspect-[3/4] w-full bg-stone"
       />
-      <p className="mt-3 font-serif text-xl leading-snug underline-offset-4 group-hover:underline">
+      <p className="mt-4 font-serif text-lg leading-snug md:text-xl underline-offset-4 group-hover:underline">
         {label}
       </p>
       {hasValue(product.price_gbp) && (

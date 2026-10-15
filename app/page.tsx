@@ -23,11 +23,11 @@ export default function Home() {
 
   return (
     <>
-      <section className={`${container} pt-16 pb-20 md:pt-28 md:pb-32`}>
-        <h1 className="max-w-4xl font-serif text-5xl leading-[1.05] md:text-7xl lg:text-8xl">
+      <section className={`${container} pt-16 pb-16 md:pt-28 md:pb-32`}>
+        <h1 className="max-w-4xl font-serif text-5xl leading-[1.1] md:text-7xl lg:text-8xl">
           Evening wear, made to order in our London studio.
         </h1>
-        <p className="mt-8 max-w-md text-base leading-relaxed text-ink/80">
+        <p className="mt-6 max-w-md text-base leading-relaxed text-ink/80">
           Made-to-order pieces take {lead} days, plus shipping.
         </p>
         <Link
@@ -45,17 +45,17 @@ export default function Home() {
           <h2 id="occasions-heading" className={h2}>
             Shop by occasion
           </h2>
-          <ul className="mt-10 grid grid-cols-2 gap-x-5 md:grid-cols-4 md:gap-x-10">
+          <ul className="mt-10 grid grid-cols-2 gap-x-4 md:grid-cols-4 md:gap-x-10">
             {occasions.map((o) => (
               <li key={o.slug}>
                 <Link
                   href={`/occasions/${o.slug}`}
-                  className="group flex min-h-28 flex-col justify-between border-t border-stone pt-4 pb-6"
+                  className="group flex h-full min-h-28 flex-col justify-between border-t border-stone pt-4 pb-6"
                 >
-                  <span className="font-serif text-2xl leading-tight underline-offset-4 group-hover:underline">
+                  <span className="font-serif text-xl leading-tight underline-offset-4 group-hover:underline">
                     {occasionDisplayName(o.name)}
                   </span>
-                  <span className="mt-3 text-[13px] tracking-[0.06em] text-ink/70">
+                  <span className="mt-4 text-[13px] tracking-[0.06em] text-ink/70">
                     {o.count} {o.count === 1 ? "piece" : "pieces"}
                   </span>
                 </Link>
@@ -73,7 +73,7 @@ export default function Home() {
           <p className="mt-4 max-w-md text-base leading-relaxed text-ink/80">
             In stock and ready to send.
           </p>
-          <ul className="mt-10 grid grid-cols-2 gap-x-5 gap-y-12 md:grid-cols-3 md:gap-x-10">
+          <ul className="mt-10 grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 md:gap-x-10">
             {inStock.map((p) => (
               <li key={p.id}>
                 <ProductCard product={p} />
@@ -90,25 +90,25 @@ export default function Home() {
           </h2>
           <ol className="mt-10 md:col-span-7 md:mt-0">
             <li className="border-t border-stone py-6 first:border-t-0 first:pt-0 md:first:border-t md:first:pt-6">
-              <h3 className="font-serif text-2xl">1. Made in London</h3>
+              <h3 className="font-serif text-xl">1. Made in London</h3>
               <p className="mt-2 max-w-prose leading-relaxed text-ink/80">
                 Each piece is made in our London studio after you order. This takes {lead} days.
               </p>
             </li>
             <li className="border-t border-stone py-6">
-              <h3 className="font-serif text-2xl">2. Shipped to you</h3>
+              <h3 className="font-serif text-xl">2. Shipped to you</h3>
               <p className="mt-2 max-w-prose leading-relaxed text-ink/80">
                 Shipping takes {uk} days to the UK and {eu} days to the EU, after making.
               </p>
             </li>
             <li className="border-t border-stone py-6">
-              <h3 className="font-serif text-2xl">3. Returns</h3>
+              <h3 className="font-serif text-xl">3. Returns</h3>
               <p className="mt-2 max-w-prose leading-relaxed text-ink/80">
                 Return within {RETURNS.days} days, {RETURNS.condition}. {RETURNS.exclusion}
               </p>
             </li>
           </ol>
-          <p className="mt-4 max-w-prose border-t border-stone pt-6 leading-relaxed text-ink/80 md:col-span-7 md:col-start-6">
+          <p className="max-w-prose border-t border-stone pt-6 leading-relaxed text-ink/80 md:col-span-7 md:col-start-6">
             Ready-to-ship pieces ship from stock. Their lead time is {stockLead}{" "}
             {stockLead === "1" ? "day" : "days"}, then shipping as above.
           </p>
