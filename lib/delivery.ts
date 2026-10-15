@@ -24,10 +24,20 @@ export type ArrivalWindow = { earliest: Date; latest: Date };
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Midnight UTC of the given instant's UTC calendar date. */
-function toUtcDay(date: Date): Date {
+export function toUtcDay(date: Date): Date {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
   );
+}
+
+/** The next given day (month 1–12) on or after `from`, e.g. the next 24 December. */
+export function nextDate(month: number, day: number, from: Date): Date {
+  const start = toUtcDay(from);
+  const year = start.getUTCFullYear();
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getTime() >= start.getTime()
+    ? date
+    : new Date(Date.UTC(year + 1, month - 1, day));
 }
 
 function addDays(date: Date, days: number): Date {
