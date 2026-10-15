@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
-import { MAX_MESSAGE_LENGTH, UNAVAILABLE_TEXT, runHelper } from "@/lib/helper";
+import { UNAVAILABLE_TEXT } from "@/lib/copy";
+import { MAX_MESSAGE_LENGTH, runHelper, runStructured, type HelperFields } from "@/lib/helper";
 
 // Server only: the key never reaches the browser.
 function client(): GoogleGenAI | null {
@@ -7,12 +8,35 @@ function client(): GoogleGenAI | null {
   return apiKey ? new GoogleGenAI({ apiKey }) : null;
 }
 
+const BODY_ERROR = 'Send JSON: {"message": string} or {"fields": {occasion, event_date, size, country}}.';
+const FIELD_NAMES = ["occasion", "event_date", "size", "country"] as const;
+
+/** Each field a string or null/absent; anything else is a bad request. */
+function parseFields(raw: unknown): HelperFields | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  const fields = {} as HelperFields;
+  for (const name of FIELD_NAMES) {
+    const value = r[name] ?? null;
+    if (value !== null && typeof value !== "string") return null;
+    fields[name] = value;
+  }
+  return fields;
+}
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "Send JSON: {\"message\": string}." }, { status: 400 });
+    return Response.json({ error: BODY_ERROR }, { status: 400 });
+  }
+
+  // Structured path: code only, no model, so it works without Gemini.
+  if (body && typeof body === "object" && "fields" in body) {
+    const fields = parseFields((body as { fields: unknown }).fields);
+    if (!fields) return Response.json({ error: BODY_ERROR }, { status: 400 });
+    return Response.json(runStructured(fields));
   }
 
   const raw = (body as { message?: unknown } | null)?.message;

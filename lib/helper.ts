@@ -19,11 +19,12 @@ import {
   formatPrice,
   getAllProducts,
   hasValue,
+  occasionDisplayName,
   type Product,
 } from "./products";
 
 // Pinned, not -latest, so output stays consistent.
-export const MODEL = "gemini-3.8-flash";
+export const MODEL = "gemini-3.5-flash-lite";
 export const MAX_MESSAGE_LENGTH = 400;
 const MAX_PICKS = 3;
 const MAX_REASON_LENGTH = 160;
@@ -33,8 +34,6 @@ const BANNED_REASON = /luxury|stunning|must-have|!/i;
 const ONE_SIZE = "one size";
 const QUEUE_NOTE = "Dates assume the studio's queue is clear.";
 
-export const UNAVAILABLE_TEXT =
-  "The helper is unavailable just now. Each product page shows its delivery dates.";
 const OTHER_COUNTRY_TEXT = "Velmora ships to the UK and the EU only.";
 
 export type Extraction = {
@@ -50,6 +49,7 @@ export type Pick = {
   id: string;
   label: string;
   price: string | null;
+  size: string | null; // the shopper's size, or "one size" for accessories
   arrival: { earliest: string; latest: string };
   orderBy: string;
   calculation: { leadTimeDays: number; shippingDays: { min: number; max: number } };
@@ -65,9 +65,18 @@ export type HelperResponse =
       type: "results";
       country: Country;
       countryAssumed: boolean;
+      occasion: string;
       eventDate: string;
       picks: Pick[];
     };
+
+/** Structured input from the helper's list form. */
+export type HelperFields = {
+  occasion: string | null;
+  event_date: string | null;
+  size: string | null;
+  country: string | null;
+};
 
 // ---------- shared data (CODE) ----------
 
@@ -87,6 +96,14 @@ export function allSizes(): string[] {
     if (Number.isNaN(na) || Number.isNaN(nb)) return Number.isNaN(na) ? 1 : -1;
     return na - nb;
   });
+}
+
+/** Dropdown options for the helper's list form, from the data. */
+export function helperFormOptions() {
+  return {
+    occasions: allOccasions().map((o) => ({ value: o, label: occasionDisplayName(o) })),
+    sizes: allSizes(),
+  };
 }
 
 const plural = (category: string) =>
@@ -378,9 +395,17 @@ export function validatePicks(
 
 // ---------- results: attach facts (CODE) ----------
 
+/** The size that matched: the shopper's own, else "one size" (fits any). */
+function matchedSize(p: Product, size: string | null): string | null {
+  const sizes = p.sizes ?? [];
+  if (size && sizes.includes(size)) return size;
+  return sizes.includes(ONE_SIZE) ? ONE_SIZE : null;
+}
+
 export function buildPick(
   p: Product,
   reason: string | null,
+  size: string | null,
   country: Country,
   now: Date,
   eventDate: Date,
@@ -390,6 +415,7 @@ export function buildPick(
     id: p.id,
     label: displayLabel(p),
     price: hasValue(p.price_gbp) ? formatPrice(p.price_gbp) : null,
+    size: matchedSize(p, size),
     arrival: { earliest: iso(w.earliest), latest: iso(w.latest) },
     orderBy: iso(orderByDate(p, country, eventDate)!),
     calculation: { leadTimeDays: p.lead_time_days, shippingDays: { ...SHIPPING_DAYS[country] } },
@@ -409,19 +435,45 @@ export async function runHelper(
   const filtered = filterProducts(extraction, now); // CODE
   if (filtered.type !== "shortlist") return filtered;
 
-  const { products, country, eventDate } = filtered;
+  const { products } = filtered;
   const ranked = await rank(ai, message, products); // MODEL
-  let picks = validatePicks(ranked, products.map((p) => p.id)); // CODE
+  const picks = validatePicks(ranked, products.map((p) => p.id)); // CODE
+  return toResults(extraction, filtered, picks, now);
+}
+
+/**
+ * CODE only, no model: the list form's path. Same validation and filter as
+ * free text, then the first 3 of the shortlist (safest dates first), no reasons.
+ */
+export function runStructured(fields: HelperFields, now: Date = new Date()): HelperResponse {
+  const extraction = validateExtraction(
+    { ...fields, max_budget_gbp: null },
+    { today: now, occasions: allOccasions(), sizes: allSizes() },
+  );
+  const filtered = filterProducts(extraction, now);
+  if (filtered.type !== "shortlist") return filtered;
+  return toResults(extraction, filtered, [], now);
+}
+
+/** Attaches every fact in code. No usable picks -> the first 3 of the shortlist. */
+function toResults(
+  extraction: Extraction,
+  { products, country, eventDate }: Extract<FilterResult, { type: "shortlist" }>,
+  picks: { id: string; reason: string | null }[],
+  now: Date,
+): HelperResponse {
   if (picks.length === 0) {
     picks = products.slice(0, MAX_PICKS).map((p) => ({ id: p.id, reason: null }));
   }
-
   const byId = new Map(products.map((p) => [p.id, p]));
   return {
     type: "results",
     country,
     countryAssumed: extraction.country === null,
+    occasion: extraction.occasion!,
     eventDate: iso(eventDate),
-    picks: picks.map((pk) => buildPick(byId.get(pk.id)!, pk.reason, country, now, eventDate)),
+    picks: picks.map((pk) =>
+      buildPick(byId.get(pk.id)!, pk.reason, extraction.size, country, now, eventDate),
+    ),
   };
 }
