@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { displayLabel, formatPrice, hasValue, type Product } from "@/lib/products";
 
-export default function ProductCard({ product }: { product: Product }) {
+export default function ProductCard({
+  product,
+  delivery,
+}: {
+  product: Product;
+  /** Optional line under the price, e.g. "Made to order in 14 days". */
+  delivery?: string;
+}) {
   const label = displayLabel(product);
 
   return (
@@ -19,6 +26,7 @@ export default function ProductCard({ product }: { product: Product }) {
           {formatPrice(product.price_gbp)}
         </p>
       )}
+      {delivery && <p className="mt-1 text-[13px] tracking-[0.02em] text-ink/70">{delivery}</p>}
     </Link>
   );
 }
