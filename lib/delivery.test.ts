@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { arrivalWindow, orderByDate, getStatus } from "./delivery";
+import { arrivalWindow, orderByDate, getStatus, nextDate } from "./delivery";
 import { getProduct } from "./products";
 
 //helpers to build a UTC date from "YYYY-MM-DD", and turn a date back into "YYYY-MM-DD".
@@ -45,4 +45,13 @@ test("VLM-021 is unavailable and gets no dates", () => {
   expect(getStatus(p)).toBe("unavailable");
   expect(arrivalWindow(p, "UK", d("2026-11-27"))).toBeNull();
   expect(orderByDate(p, "UK", d("2026-12-24"))).toBeNull();
+});
+
+//nextDate: the next given day on or after the start date.
+test("nextDate from 1 December 2026 is 24 December 2026", () => {
+  expect(iso(nextDate(12, 24, d("2026-12-01")))).toBe("2026-12-24");
+});
+
+test("nextDate from 25 December 2026 is 24 December 2027", () => {
+  expect(iso(nextDate(12, 24, d("2026-12-25")))).toBe("2027-12-24");
 });
