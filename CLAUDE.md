@@ -67,7 +67,7 @@ There is no test suite.
 
 ### Delivery dates
 - Arrival = order date + lead_time_days + shipping (UK 3–5, EU 5–8 days). Order-by = event date − (lead time + max shipping).
-- Calendar days, UTC dates. Show the calculation. Add "Dates assume the studio's queue is clear."
+- Calendar days, UTC dates. Show the calculation. Add "Dates assume the studio's queue is clear." on made-to-order pieces only: in-stock pieces don't wait for the studio.
 
 ### Voice and offers
 - Calm, precise, warm, short sentences. State fabric, fit and delivery date plainly.
