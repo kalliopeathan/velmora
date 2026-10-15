@@ -1,6 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { UNAVAILABLE_TEXT } from "@/lib/copy";
-import { MAX_MESSAGE_LENGTH, runHelper, runStructured, type HelperFields } from "@/lib/helper";
+import {
+  MAX_MESSAGE_LENGTH,
+  logModelError,
+  runHelper,
+  runStructured,
+  type HelperFields,
+} from "@/lib/helper";
 
 // Server only: the key never reaches the browser.
 function client(): GoogleGenAI | null {
@@ -53,8 +59,9 @@ export async function POST(request: Request) {
 
   try {
     return Response.json(await runHelper(ai, message));
-  } catch {
+  } catch (error) {
     // Extract call failed (API error, rate limit, timeout): no shortlist to fall back to.
+    logModelError("extract", error, message);
     return Response.json({ type: "message", text: UNAVAILABLE_TEXT }, { status: 503 });
   }
 }
