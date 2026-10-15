@@ -41,6 +41,12 @@ test("a size Velmora doesn't make is flagged, not ignored", () => {
   expect(e.sizeUnavailable).toBe(true);
 });
 
+test('a bare size "20" is read as UK 20 and flagged', () => {
+  const e = validateExtraction({ ...base, size: "20" }, ctx);
+  expect(e.size).toBeNull();
+  expect(e.sizeUnavailable).toBe(true);
+});
+
 test("no size given is not flagged", () => {
   const e = validateExtraction({ ...base, size: null }, ctx);
   expect(e.size).toBeNull();

@@ -4,10 +4,10 @@ Run on 2026-10-15 against `POST /api/helper` on the dev server at http://localho
 
 | # | Question | Path | Expected | Actual | Pass |
 |---|---|---|---|---|---|
-| 1 | Winter wedding on 12 December, UK 12, London | text | Results, all arriving by 12 December | 200, 13.1 s. 2 picks, UK (from London): VLM-008, VLM-012. Both arrive 1–3 November; order by 23 November. Reasons name fabric and fit only. | yes |
+| 1 | Winter wedding on 12 December, UK 12, London | text | Results, all arriving by 12 December | Rerun after the size fix: 200, 7.3 s. 3 picks, UK (from London), all `size: "UK 12"`: VLM-035 (arrives 21–23 October, order by 4 December), VLM-008 and VLM-012 (arrive 1–3 November, order by 23 November). Reasons name fabric, colour and fit; no £ or digits. (First run: 200, 13.1 s, 2 picks, VLM-008 and VLM-012.) | yes |
 | 2 | Wedding this Saturday, size 12 | text | Code-written "may not arrive" answer naming the soonest piece | 200, 6.8 s. `none`: "Ordered today, the matching pieces may not arrive by 17 October. The soonest is Livia top, ivory wool crepe: 21 October to 23 October to the UK." | yes |
 | 3 | Something for a wedding | text | A question asking for the date | 200, 1.2 s. `question`, missing occasion and event_date. Asks for the date, and for the occasion too. | yes |
-| 4 | Gala on 20 December, size 20 | text | The size message (UK 6 to UK 18, one size); no invented size | 200, 2.1 s. `results`: 3 gala pieces (VLM-017, VLM-014, VLM-027) with `size: null`. The size 20 was dropped without a word, so the shopper is shown pieces with no check that they come in their size. No size message. | **no** |
+| 4 | Gala on 20 December, size 20 | text | The size message (UK 6 to UK 18, one size); no invented size | Rerun after the size fix: 200, 1.1 s. `message`: "Velmora doesn't make that size. Sizes are UK 6 to UK 18, and one size for accessories." No products, no invented size. (First run failed: `results` with `size: null`, the size 20 dropped without a word.) | yes |
 | 5 | Black tie dinner in New York on 20 December | text | "Velmora ships to the UK and the EU only." | 200, 1.0 s. `message`: "Velmora ships to the UK and the EU only." | yes |
 | 6 | New Year's Eve, under £250, UK 10, Paris | text | Only pieces at or under £250, EU dates | 200, 8.9 s. 3 picks, EU, event date inferred as 31 December: VLM-038 £160, VLM-040 £200, VLM-047 £140 (one size). All EU 5–8 day shipping, arriving 23–26 October. All reasons null: the server log shows `rank failed: AbortError` (8 s timeout), so the code used the first 3 of the shortlist. | yes |
 | 7 | Do you have the Aurora gown? | text | No invented product | 200, 0.7 s. `question`, missing occasion and event_date. No product named. It also doesn't say there is no Aurora gown. | yes |
@@ -27,7 +27,9 @@ For every result, each pick's id, occasion, size and arrival-by-event were check
 
 ## Failures
 
-1. **Test 4: an unavailable size is dropped instead of answered.** "Size 20" didn't produce the size message. The extraction came back with no size, so `sizeUnavailable` was false and the filter ignored size. The code check in `validateExtraction` works when it gets "UK 20" (unit test and form path), so the size is being lost at the model step. Likely the model only returns sizes from the list in the prompt, and a bare "20" isn't one.
+None open.
+
+1. **Test 4 (fixed): an unavailable size was dropped instead of answered.** On the first run "size 20" came back with no size, so `sizeUnavailable` was false and the filter ignored size. Cause: `prompts/extract.txt` told the model the size must be one of the listed sizes or null. Fix: the prompt now asks for the size the shopper mentions as "UK <number>" or "one size", even if it isn't listed. `validateExtraction` also reads a bare number ("20", "size 20") as "UK 20". A unit test covers the bare "20" case. Tests 4 and 1 were rerun on 2026-10-15 and both pass.
 
 ## Other observations (not failures against the expected column)
 
@@ -35,4 +37,4 @@ For every result, each pick's id, occasion, size and arrival-by-event were check
 - **"Wedding" isn't handled the same way each time.** There is no "wedding" occasion, only "winter wedding". The model mapped "wedding" to winter wedding in tests 2 (17 October) and 14, but not in test 3.
 - **Tests 7 and 10:** a question about a product we don't make, or an injection attempt, gets "choose the occasion and the date". That's safe, but it doesn't tell the shopper the Aurora gown doesn't exist.
 - **Test 14:** the response type can't tell "no date given" apart from "invalid date given", so the shopper isn't told why the date was refused.
-- **Test 1:** only 2 picks came back. The rank call chose 2 from the shortlist; the code only fills in the first 3 when the model returns none.
+- **Test 1:** the first run returned only 2 picks because the rank call chose 2 from the shortlist. The code only fills in the first 3 when the model returns none. The rerun returned 3.

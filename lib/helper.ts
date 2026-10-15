@@ -226,8 +226,13 @@ export function validateExtraction(
       ? (value as T)
       : null;
 
-  // Sizes match ignoring case and spacing ("uk  10" -> "UK 10").
-  const normalise = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  // Sizes match ignoring case and spacing ("uk  10" -> "UK 10"), and a bare
+  // number reads as a UK size ("20", "size 20" -> "UK 20").
+  const normalise = (s: string) => {
+    const flat = s.trim().replace(/\s+/g, " ").toLowerCase();
+    const number = /^(?:size )?(?:uk ?)?(\d+)$/.exec(flat)?.[1];
+    return number ? `uk ${number}` : flat;
+  };
   const givenSize = typeof r.size === "string" && r.size.trim() ? r.size : null;
   const size = givenSize
     ? (ctx.sizes.find((s) => normalise(s) === normalise(givenSize)) ?? null)
