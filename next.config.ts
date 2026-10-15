@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
     agentFeedback: true,
   },
   cacheComponents: true,
+  // The helper reads its system prompts from disk at request time.
+  outputFileTracingIncludes: {
+    "/api/helper": ["./prompts/*.txt"],
+  },
   partialPrefetching: true,
   turbopack: {
     rules: {
