@@ -3,6 +3,7 @@ import ProductCard from "@/components/ProductCard";
 import DeliveryHelper from "@/components/DeliveryHelper";
 import EmailSignup from "@/components/EmailSignup";
 import { helperFormOptions } from "@/lib/helper";
+import { organizationJsonLd, serializeJsonLd } from "@/lib/jsonld";
 import { getInStock, getOccasions, occasionDisplayName } from "@/lib/products";
 import { MADE_TO_ORDER_LEAD_DAYS, RETURNS, SHIPPING_DAYS } from "@/lib/brand";
 
@@ -25,6 +26,10 @@ export default function Home() {
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(organizationJsonLd()) }}
+      />
       <section className={`${container} pt-16 pb-16 md:pt-28 md:pb-32`}>
         <h1 className="max-w-4xl font-serif text-5xl leading-[1.1] md:text-7xl lg:text-8xl">
           Evening wear, made to order in our London studio.

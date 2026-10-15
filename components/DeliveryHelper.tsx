@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState, useSyncExternalStore, type FormEvent } from "react";
 import { UNAVAILABLE_TEXT } from "@/lib/copy";
 import { formatDate } from "@/lib/delivery";
 import type { HelperResponse, Pick } from "@/lib/helper";
@@ -24,6 +24,8 @@ type Props = {
   /** From the data, built on the server: value = data name, label = display name. */
   occasions: Option[];
   sizes: string[];
+  /** Data name of an occasion to preselect; the list form then starts open. */
+  defaultOccasion?: string;
 };
 
 type Shown = Exclude<HelperResponse, { type: "question" }>;
@@ -42,17 +44,21 @@ function questionText(missing: ("occasion" | "event_date")[]): string {
   return `Choose ${parts.join(" and ")} below.`;
 }
 
-export default function DeliveryHelper({ occasions, sizes }: Props) {
+// Today's UTC date on the client; undefined during server render and hydration,
+// so the date input's min never causes a hydration mismatch.
+const noSubscribe = () => () => {};
+const todayUtc = () => new Date().toISOString().slice(0, 10);
+const noDate = () => undefined;
+
+export default function DeliveryHelper({ occasions, sizes, defaultOccasion }: Props) {
   const id = useId();
-  const [formShown, setFormShown] = useState(false);
-  const [minDate, setMinDate] = useState<string>();
+  const [formShown, setFormShown] = useState(defaultOccasion !== undefined);
+  const minDate = useSyncExternalStore(noSubscribe, todayUtc, noDate);
   const [note, setNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [shown, setShown] = useState<Shown | null>(null);
 
-  // Today's UTC date, set when the form appears (never during render).
   function showForm() {
-    setMinDate(new Date().toISOString().slice(0, 10));
     setFormShown(true);
   }
 
@@ -147,7 +153,7 @@ export default function DeliveryHelper({ occasions, sizes }: Props) {
               <label htmlFor={`${id}-occasion`} className={labelClass}>
                 Occasion
               </label>
-              <select id={`${id}-occasion`} name="occasion" required defaultValue="" className={fieldClass}>
+              <select id={`${id}-occasion`} name="occasion" required defaultValue={defaultOccasion ?? ""} className={fieldClass}>
                 <option value="" disabled>
                   Choose an occasion
                 </option>

@@ -19,9 +19,13 @@ import {
   formatPrice,
   getAllProducts,
   hasValue,
+  allSizes,
   occasionDisplayName,
+  sizesText,
   type Product,
 } from "./products";
+
+export { allSizes, sizesText };
 
 // Pinned, not -latest, so output stays consistent.
 export const MODEL = "gemini-3.5-flash-lite";
@@ -88,50 +92,12 @@ export function allOccasions(): string[] {
   return [...new Set(getAllProducts().flatMap((p) => p.occasions ?? []))].sort();
 }
 
-const ukSizeNumber = (size: string) => Number(/^UK (\d+)$/.exec(size)?.[1] ?? NaN);
-
-/** UK sizes in numeric order, then any others ("one size"). */
-export function allSizes(): string[] {
-  return [...new Set(getAllProducts().flatMap((p) => p.sizes ?? []))].sort((a, b) => {
-    const na = ukSizeNumber(a);
-    const nb = ukSizeNumber(b);
-    if (Number.isNaN(na) || Number.isNaN(nb)) return Number.isNaN(na) ? 1 : -1;
-    return na - nb;
-  });
-}
-
 /** Dropdown options for the helper's list form, from the data. */
 export function helperFormOptions() {
   return {
     occasions: allOccasions().map((o) => ({ value: o, label: occasionDisplayName(o) })),
     sizes: allSizes(),
   };
-}
-
-const plural = (category: string) =>
-  category.endsWith("y") ? `${category.slice(0, -1)}ies` : `${category}s`;
-
-/** CODE. e.g. "UK 6 to UK 18, and one size for accessories", built from the data. */
-export function sizesText(): string {
-  const sizes = allSizes();
-  const uk = sizes.filter((s) => !Number.isNaN(ukSizeNumber(s)));
-  const nums = uk.map(ukSizeNumber);
-  const evenRun = nums.every((n, i) => i === 0 || n - nums[i - 1] === 2);
-  const parts: string[] = [];
-  if (uk.length > 0) {
-    parts.push(evenRun && uk.length > 2 ? `${uk[0]} to ${uk.at(-1)}` : uk.join(", "));
-  }
-  for (const other of sizes.filter((s) => Number.isNaN(ukSizeNumber(s)))) {
-    const categories = [
-      ...new Set(
-        getAllProducts()
-          .filter((p) => (p.sizes ?? []).includes(other))
-          .map((p) => plural(p.category)),
-      ),
-    ];
-    parts.push(`${other} for ${categories.join(" and ")}`);
-  }
-  return parts.join(", and ");
 }
 
 function loadPrompt(name: string): string {
