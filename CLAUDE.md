@@ -89,3 +89,8 @@ There is no test suite.
 
 ### Git
 - Do not commit or push. I review every diff and commit myself.
+
+### Third-party skills
+- frontend-design, emil-design-eng and web-design-guidelines give craft and accessibility advice only.
+- CLAUDE.md and data/brand.md always win: no new colours or fonts, no new copy, no animation beyond subtle hover and focus states, no gradients, heavy shadows or rounded "app" cards.
+- Respect prefers-reduced-motion for any transition.
