@@ -3,7 +3,7 @@
 // (step 3). No prices, dates or names are ever sent to the model.
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { Type, type GoogleGenAI, type Schema } from "@google/genai";
+import { ThinkingLevel, Type, type GoogleGenAI, type Schema } from "@google/genai";
 import { SHIPPING_DAYS } from "./brand";
 import {
   arrivalWindow,
@@ -29,6 +29,8 @@ export const MAX_MESSAGE_LENGTH = 400;
 const MAX_PICKS = 3;
 const MAX_REASON_LENGTH = 160;
 const MODEL_TIMEOUT_MS = 8000;
+// Extracting fields and picking ids need no reasoning: lowest thinking level.
+const THINKING = { thinkingLevel: ThinkingLevel.MINIMAL };
 // Voice rules from CLAUDE.md: a reason using these is dropped, not edited.
 const BANNED_REASON = /luxury|stunning|must-have|!/i;
 const ONE_SIZE = "one size";
@@ -152,6 +154,19 @@ function parseJson(text: string | undefined): unknown {
   }
 }
 
+/**
+ * Server log for a failed model call: error name and message only. The key and
+ * the shopper's message are redacted in case an error ever echoes them.
+ */
+export function logModelError(step: "extract" | "rank", error: unknown, message: string): void {
+  const name = error instanceof Error ? error.name : typeof error;
+  let text = error instanceof Error ? error.message : String(error);
+  for (const secret of [process.env.GEMINI_API_KEY, message]) {
+    if (secret) text = text.replaceAll(secret, "[redacted]");
+  }
+  console.error(`[helper] ${step} failed (${MODEL}): ${name}: ${text}`);
+}
+
 // ---------- step 1: EXTRACT (MODEL) ----------
 
 function extractSchema(): Schema {
@@ -178,6 +193,7 @@ export async function extract(ai: GoogleGenAI, message: string, now: Date): Prom
       systemInstruction: extractInstruction(now),
       responseMimeType: "application/json",
       responseSchema: extractSchema(),
+      thinkingConfig: THINKING,
       abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
     },
   });
@@ -342,11 +358,13 @@ export async function rank(
         systemInstruction: loadPrompt("rank.txt"),
         responseMimeType: "application/json",
         responseSchema: rankSchema,
+        thinkingConfig: THINKING,
         abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
       },
     });
     return parseJson(response.text);
-  } catch {
+  } catch (error) {
+    logModelError("rank", error, message);
     return null;
   }
 }
