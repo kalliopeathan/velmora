@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DeliveryBox from "@/components/DeliveryBox";
+import DeliveryHelper from "@/components/DeliveryHelper";
 import ProductPurchase from "@/components/ProductPurchase";
 import { RETURNS } from "@/lib/brand";
 import { getStatus } from "@/lib/delivery";
+import { helperFormOptions } from "@/lib/helper";
 import { productJsonLd, serializeJsonLd } from "@/lib/jsonld";
 import {
   displayLabel,
@@ -91,7 +93,14 @@ export default async function ProductPage({ params }: PageProps<"/products/[id]"
         <div className="mt-6">
           <DeliveryBox product={product} />
         </div>
-        <div id="helper"></div>
+        <section id="helper" aria-labelledby="helper-heading" className="mt-10">
+          <h2 id="helper-heading" className="font-serif text-2xl leading-snug">
+            Delivery dates
+          </h2>
+          <div className="mt-4">
+            <DeliveryHelper {...helperFormOptions()} />
+          </div>
+        </section>
 
         <p className="mt-6 text-sm leading-relaxed text-ink/80">
           Return within {RETURNS.days} days, {RETURNS.condition}. {RETURNS.exclusion}

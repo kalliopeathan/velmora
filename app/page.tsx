@@ -1,6 +1,8 @@
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
+import DeliveryHelper from "@/components/DeliveryHelper";
 import EmailSignup from "@/components/EmailSignup";
+import { helperFormOptions } from "@/lib/helper";
 import { getInStock, getOccasions, occasionDisplayName } from "@/lib/products";
 import { MADE_TO_ORDER_LEAD_DAYS, RETURNS, SHIPPING_DAYS } from "@/lib/brand";
 
@@ -38,7 +40,16 @@ export default function Home() {
         </Link>
       </section>
 
-      <div id="helper"></div>
+      <section id="helper" className={section} aria-labelledby="helper-heading">
+        <div className={container}>
+          <h2 id="helper-heading" className={h2}>
+            Delivery dates
+          </h2>
+          <div className="mt-10">
+            <DeliveryHelper {...helperFormOptions()} />
+          </div>
+        </div>
+      </section>
 
       <section id="occasions" className={section} aria-labelledby="occasions-heading">
         <div className={container}>
