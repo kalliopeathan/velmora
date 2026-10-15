@@ -3,7 +3,7 @@
 // (step 3). No prices, dates or names are ever sent to the model.
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { Type, type GoogleGenAI, type Schema } from "@google/genai";
+import { ThinkingLevel, Type, type GoogleGenAI, type Schema } from "@google/genai";
 import { SHIPPING_DAYS } from "./brand";
 import {
   arrivalWindow,
@@ -19,22 +19,23 @@ import {
   formatPrice,
   getAllProducts,
   hasValue,
+  occasionDisplayName,
   type Product,
 } from "./products";
 
 // Pinned, not -latest, so output stays consistent.
-export const MODEL = "gemini-3.8-flash";
+export const MODEL = "gemini-3.5-flash-lite";
 export const MAX_MESSAGE_LENGTH = 400;
 const MAX_PICKS = 3;
 const MAX_REASON_LENGTH = 160;
 const MODEL_TIMEOUT_MS = 8000;
+// Extracting fields and picking ids need no reasoning: lowest thinking level.
+const THINKING = { thinkingLevel: ThinkingLevel.MINIMAL };
 // Voice rules from CLAUDE.md: a reason using these is dropped, not edited.
 const BANNED_REASON = /luxury|stunning|must-have|!/i;
 const ONE_SIZE = "one size";
 const QUEUE_NOTE = "Dates assume the studio's queue is clear.";
 
-export const UNAVAILABLE_TEXT =
-  "The helper is unavailable just now. Each product page shows its delivery dates.";
 const OTHER_COUNTRY_TEXT = "Velmora ships to the UK and the EU only.";
 
 export type Extraction = {
@@ -50,6 +51,7 @@ export type Pick = {
   id: string;
   label: string;
   price: string | null;
+  size: string | null; // the shopper's size, or "one size" for accessories
   arrival: { earliest: string; latest: string };
   orderBy: string;
   calculation: { leadTimeDays: number; shippingDays: { min: number; max: number } };
@@ -65,9 +67,18 @@ export type HelperResponse =
       type: "results";
       country: Country;
       countryAssumed: boolean;
+      occasion: string;
       eventDate: string;
       picks: Pick[];
     };
+
+/** Structured input from the helper's list form. */
+export type HelperFields = {
+  occasion: string | null;
+  event_date: string | null;
+  size: string | null;
+  country: string | null;
+};
 
 // ---------- shared data (CODE) ----------
 
@@ -87,6 +98,14 @@ export function allSizes(): string[] {
     if (Number.isNaN(na) || Number.isNaN(nb)) return Number.isNaN(na) ? 1 : -1;
     return na - nb;
   });
+}
+
+/** Dropdown options for the helper's list form, from the data. */
+export function helperFormOptions() {
+  return {
+    occasions: allOccasions().map((o) => ({ value: o, label: occasionDisplayName(o) })),
+    sizes: allSizes(),
+  };
 }
 
 const plural = (category: string) =>
@@ -135,6 +154,19 @@ function parseJson(text: string | undefined): unknown {
   }
 }
 
+/**
+ * Server log for a failed model call: error name and message only. The key and
+ * the shopper's message are redacted in case an error ever echoes them.
+ */
+export function logModelError(step: "extract" | "rank", error: unknown, message: string): void {
+  const name = error instanceof Error ? error.name : typeof error;
+  let text = error instanceof Error ? error.message : String(error);
+  for (const secret of [process.env.GEMINI_API_KEY, message]) {
+    if (secret) text = text.replaceAll(secret, "[redacted]");
+  }
+  console.error(`[helper] ${step} failed (${MODEL}): ${name}: ${text}`);
+}
+
 // ---------- step 1: EXTRACT (MODEL) ----------
 
 function extractSchema(): Schema {
@@ -161,6 +193,7 @@ export async function extract(ai: GoogleGenAI, message: string, now: Date): Prom
       systemInstruction: extractInstruction(now),
       responseMimeType: "application/json",
       responseSchema: extractSchema(),
+      thinkingConfig: THINKING,
       abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
     },
   });
@@ -193,8 +226,13 @@ export function validateExtraction(
       ? (value as T)
       : null;
 
-  // Sizes match ignoring case and spacing ("uk  10" -> "UK 10").
-  const normalise = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  // Sizes match ignoring case and spacing ("uk  10" -> "UK 10"), and a bare
+  // number reads as a UK size ("20", "size 20" -> "UK 20").
+  const normalise = (s: string) => {
+    const flat = s.trim().replace(/\s+/g, " ").toLowerCase();
+    const number = /^(?:size )?(?:uk ?)?(\d+)$/.exec(flat)?.[1];
+    return number ? `uk ${number}` : flat;
+  };
   const givenSize = typeof r.size === "string" && r.size.trim() ? r.size : null;
   const size = givenSize
     ? (ctx.sizes.find((s) => normalise(s) === normalise(givenSize)) ?? null)
@@ -325,11 +363,13 @@ export async function rank(
         systemInstruction: loadPrompt("rank.txt"),
         responseMimeType: "application/json",
         responseSchema: rankSchema,
+        thinkingConfig: THINKING,
         abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
       },
     });
     return parseJson(response.text);
-  } catch {
+  } catch (error) {
+    logModelError("rank", error, message);
     return null;
   }
 }
@@ -378,9 +418,17 @@ export function validatePicks(
 
 // ---------- results: attach facts (CODE) ----------
 
+/** The size that matched: the shopper's own, else "one size" (fits any). */
+function matchedSize(p: Product, size: string | null): string | null {
+  const sizes = p.sizes ?? [];
+  if (size && sizes.includes(size)) return size;
+  return sizes.includes(ONE_SIZE) ? ONE_SIZE : null;
+}
+
 export function buildPick(
   p: Product,
   reason: string | null,
+  size: string | null,
   country: Country,
   now: Date,
   eventDate: Date,
@@ -390,6 +438,7 @@ export function buildPick(
     id: p.id,
     label: displayLabel(p),
     price: hasValue(p.price_gbp) ? formatPrice(p.price_gbp) : null,
+    size: matchedSize(p, size),
     arrival: { earliest: iso(w.earliest), latest: iso(w.latest) },
     orderBy: iso(orderByDate(p, country, eventDate)!),
     calculation: { leadTimeDays: p.lead_time_days, shippingDays: { ...SHIPPING_DAYS[country] } },
@@ -409,19 +458,45 @@ export async function runHelper(
   const filtered = filterProducts(extraction, now); // CODE
   if (filtered.type !== "shortlist") return filtered;
 
-  const { products, country, eventDate } = filtered;
+  const { products } = filtered;
   const ranked = await rank(ai, message, products); // MODEL
-  let picks = validatePicks(ranked, products.map((p) => p.id)); // CODE
+  const picks = validatePicks(ranked, products.map((p) => p.id)); // CODE
+  return toResults(extraction, filtered, picks, now);
+}
+
+/**
+ * CODE only, no model: the list form's path. Same validation and filter as
+ * free text, then the first 3 of the shortlist (safest dates first), no reasons.
+ */
+export function runStructured(fields: HelperFields, now: Date = new Date()): HelperResponse {
+  const extraction = validateExtraction(
+    { ...fields, max_budget_gbp: null },
+    { today: now, occasions: allOccasions(), sizes: allSizes() },
+  );
+  const filtered = filterProducts(extraction, now);
+  if (filtered.type !== "shortlist") return filtered;
+  return toResults(extraction, filtered, [], now);
+}
+
+/** Attaches every fact in code. No usable picks -> the first 3 of the shortlist. */
+function toResults(
+  extraction: Extraction,
+  { products, country, eventDate }: Extract<FilterResult, { type: "shortlist" }>,
+  picks: { id: string; reason: string | null }[],
+  now: Date,
+): HelperResponse {
   if (picks.length === 0) {
     picks = products.slice(0, MAX_PICKS).map((p) => ({ id: p.id, reason: null }));
   }
-
   const byId = new Map(products.map((p) => [p.id, p]));
   return {
     type: "results",
     country,
     countryAssumed: extraction.country === null,
+    occasion: extraction.occasion!,
     eventDate: iso(eventDate),
-    picks: picks.map((pk) => buildPick(byId.get(pk.id)!, pk.reason, country, now, eventDate)),
+    picks: picks.map((pk) =>
+      buildPick(byId.get(pk.id)!, pk.reason, extraction.size, country, now, eventDate),
+    ),
   };
 }

@@ -1,5 +1,11 @@
 import { test, expect } from "vitest";
-import { allOccasions, allSizes, validateExtraction, validatePicks } from "./helper";
+import {
+  allOccasions,
+  allSizes,
+  runStructured,
+  validateExtraction,
+  validatePicks,
+} from "./helper";
 
 //today is fixed so "past date" doesn't drift.
 const ctx = {
@@ -31,6 +37,12 @@ test("valid extraction passes through", () => {
 
 test("a size Velmora doesn't make is flagged, not ignored", () => {
   const e = validateExtraction({ ...base, size: "UK 22" }, ctx);
+  expect(e.size).toBeNull();
+  expect(e.sizeUnavailable).toBe(true);
+});
+
+test('a bare size "20" is read as UK 20 and flagged', () => {
+  const e = validateExtraction({ ...base, size: "20" }, ctx);
   expect(e.size).toBeNull();
   expect(e.sizeUnavailable).toBe(true);
 });
@@ -77,4 +89,36 @@ test("a reason with £ or a digit is nulled", () => {
 test('a reason with "stunning" is nulled', () => {
   const picks = validatePicks({ picks: [{ id: "VLM-016", reason: "A Stunning velvet dress." }] }, shortlist);
   expect(picks).toEqual([{ id: "VLM-016", reason: null }]);
+});
+
+// runStructured (list form: code only, no model)
+
+const fields = {
+  occasion: "winter wedding",
+  event_date: "2026-12-19",
+  size: "UK 12",
+  country: "UK",
+};
+
+test("valid fields return results with no reasons", () => {
+  const response = runStructured(fields, ctx.today);
+  expect(response.type).toBe("results");
+  if (response.type !== "results") return;
+  expect(response.picks.length).toBeGreaterThan(0);
+  expect(response.picks.length).toBeLessThanOrEqual(3);
+  expect(response.picks.every((p) => p.reason === null)).toBe(true);
+});
+
+test("a size Velmora doesn't make returns the size message", () => {
+  const response = runStructured({ ...fields, size: "UK 22" }, ctx.today);
+  expect(response.type).toBe("message");
+  if (response.type !== "message") return;
+  expect(response.text).toMatch(/^Velmora doesn't make that size\./);
+});
+
+test("a past date returns the question", () => {
+  expect(runStructured({ ...fields, event_date: "2026-10-14" }, ctx.today)).toEqual({
+    type: "question",
+    missing: ["event_date"],
+  });
 });
