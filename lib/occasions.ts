@@ -99,7 +99,10 @@ export function openingAnswer(name: string, s: OccasionSummary): string[] {
   return sentences;
 }
 
-/** Longest made-to-order lead time + maximum shipping. Null with no made-to-order pieces. */
+/**
+ * Longest made-to-order lead time + maximum shipping, so the line holds for every piece
+ * on the page. Null with no made-to-order pieces.
+ */
 export function deadlineText(s: OccasionSummary): string | null {
   if (!s.lead) return null;
   const uk = s.lead.max + SHIPPING_DAYS.UK.max;

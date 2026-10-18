@@ -1,3 +1,4 @@
+// Catalogue access and display helpers; every product fact is read from data/products.json.
 import productsData from "@/data/products.json";
 import { getStatus } from "./delivery";
 
@@ -80,7 +81,8 @@ export function getOccasions(): Occasion[] {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
-// Name + first colour + fabric, e.g. "Isola dress, black velvet".
+// Name + first colour + fabric, e.g. "Isola dress, black velvet". Names repeat across
+// products, so the name alone can't identify a piece.
 export function displayLabel(product: Product): string {
   const detail = [product.colours?.[0], product.fabric]
     .filter((part) => hasValue(part))

@@ -37,6 +37,7 @@ function shippingDetails(product: Product, country: Country) {
     })),
     deliveryTime: {
       "@type": "ShippingDeliveryTime",
+      // Making (or dispatch from stock) is handling time; shipping is transit time.
       handlingTime: days(product.lead_time_days, product.lead_time_days),
       transitTime: days(shipping.min, shipping.max),
     },
@@ -115,6 +116,7 @@ export function occasionJsonLd(occasion: Occasion, products: Product[], faq: Faq
         })),
       },
       {
+        // No /occasions index page, and structured data never points at an anchor: two levels.
         "@type": "BreadcrumbList",
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
