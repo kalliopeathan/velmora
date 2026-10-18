@@ -32,6 +32,8 @@ export const MODEL = "gemini-3.5-flash-lite";
 export const MAX_MESSAGE_LENGTH = 400;
 const MAX_PICKS = 3;
 const MAX_REASON_LENGTH = 160;
+// Past this the shopper is better served by code: an extract timeout returns 503 (the UI
+// opens the list form); a rank timeout falls back to the shortlist without reasons.
 const MODEL_TIMEOUT_MS = 8000;
 // Extracting fields and picking ids need no reasoning: lowest thinking level.
 const THINKING = { thinkingLevel: ThinkingLevel.MINIMAL };
@@ -86,6 +88,7 @@ export type HelperFields = {
 
 // ---------- shared data (CODE) ----------
 
+// toISOString is UTC, matching lib/delivery: a date never shifts with the server's time zone.
 const iso = (date: Date) => date.toISOString().slice(0, 10);
 
 export function allOccasions(): string[] {
@@ -100,6 +103,8 @@ export function helperFormOptions() {
   };
 }
 
+// Prompts live in prompts/ so wording can be reviewed apart from code; read per call,
+// so edits apply without a restart.
 function loadPrompt(name: string): string {
   return readFileSync(path.join(process.cwd(), "prompts", name), "utf8");
 }
@@ -163,6 +168,7 @@ export async function extract(ai: GoogleGenAI, message: string, now: Date): Prom
       abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
     },
   });
+  // The schema constrains shape, not truth: every field is re-checked in code.
   return validateExtraction(parseJson(response.text), {
     today: now,
     occasions: allOccasions(),
@@ -192,8 +198,8 @@ export function validateExtraction(
       ? (value as T)
       : null;
 
-  // Sizes match ignoring case and spacing ("uk  10" -> "UK 10"), and a bare
-  // number reads as a UK size ("20", "size 20" -> "UK 20").
+  // Match ignoring case and spacing, and read a bare number as UK ("size 20" -> "UK 20"):
+  // the model doesn't always format sizes, and an unmade size must still be flagged.
   const normalise = (s: string) => {
     const flat = s.trim().replace(/\s+/g, " ").toLowerCase();
     const number = /^(?:size )?(?:uk ?)?(\d+)$/.exec(flat)?.[1];
@@ -254,6 +260,7 @@ export function filterProducts(e: Extraction, now: Date): FilterResult {
   if (!e.event_date) missing.push("event_date");
   if (missing.length > 0) return { type: "question", missing };
 
+  // No country given: assume the UK and report countryAssumed, so the UI says so.
   const country: Country = e.country ?? "UK";
   const eventDate = parseIsoDate(e.event_date)!;
 
@@ -301,7 +308,10 @@ const rankSchema: Schema = {
   required: ["picks"],
 };
 
-/** Only the fields the model may see: no prices, dates or names. */
+/**
+ * Only the fields the model may see: no prices, dates or names. It can't misquote
+ * what it never sees; code attaches those facts afterwards (buildPick).
+ */
 export function shortlistForModel(products: Product[]) {
   return products.map(({ id, category, colours, fabric, fit, occasions }) => ({
     id,
@@ -313,7 +323,10 @@ export function shortlistForModel(products: Product[]) {
   }));
 }
 
-/** MODEL. Returns parsed JSON, or null on any failure (API error, rate limit, timeout, bad JSON). */
+/**
+ * MODEL. Returns parsed JSON, or null on any failure (API error, rate limit, timeout, bad JSON).
+ * Not fatal: the shortlist is already valid, so toResults falls back to its first 3.
+ */
 export async function rank(
   ai: GoogleGenAI,
   message: string,
@@ -342,6 +355,7 @@ export async function rank(
 
 // ---------- step 4: VALIDATE picks (CODE) ----------
 
+// A digit or £ could be an invented price, date or count: code owns those facts.
 function cleanReason(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const reason = value.trim();
@@ -408,6 +422,7 @@ export function buildPick(
     arrival: { earliest: iso(w.earliest), latest: iso(w.latest) },
     orderBy: iso(orderByDate(p, country, eventDate)!),
     calculation: { leadTimeDays: p.lead_time_days, shippingDays: { ...SHIPPING_DAYS[country] } },
+    // In-stock pieces don't wait for the studio, so they get no queue note.
     queueNote: getStatus(p) === "made_to_order" ? QUEUE_NOTE : null,
     reason,
   };
@@ -433,6 +448,7 @@ export async function runHelper(
 /**
  * CODE only, no model: the list form's path. Same validation and filter as
  * free text, then the first 3 of the shortlist (safest dates first), no reasons.
+ * Skipping the model makes it instant and keeps it working when Gemini is down.
  */
 export function runStructured(fields: HelperFields, now: Date = new Date()): HelperResponse {
   const extraction = validateExtraction(

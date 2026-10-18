@@ -6,7 +6,9 @@ import { UNAVAILABLE_TEXT } from "@/lib/copy";
 import { formatDate } from "@/lib/delivery";
 import type { HelperResponse, Pick } from "@/lib/helper";
 
-const MAX_MESSAGE_LENGTH = 400; // matches the server cap in lib/helper.ts
+// Matches the server cap in lib/helper.ts. Not imported: that module uses node:fs and
+// Gemini, so only its types (import type) may reach the browser.
+const MAX_MESSAGE_LENGTH = 400;
 const FALLBACK_TEXT = "Choose from the list below instead.";
 
 const labelClass = "block text-[13px] tracking-[0.06em]";
@@ -73,6 +75,7 @@ export default function DeliveryHelper({ occasions, sizes, defaultOccasion }: Pr
         body: JSON.stringify(body),
       });
       const data = (await res.json().catch(() => null)) as HelperResponse | null;
+      // Only free text needs Gemini; on 503 the list form (code only) still works.
       if (res.status === 503 && fromText) {
         showForm();
         setNote(FALLBACK_TEXT);
@@ -114,6 +117,7 @@ export default function DeliveryHelper({ occasions, sizes, defaultOccasion }: Pr
     );
   }
 
+  // Labels come from props: importing lib/products would ship the catalogue to the browser.
   const occasionLabel = (name: string) =>
     occasions.find((o) => o.value === name)?.label ?? name;
 

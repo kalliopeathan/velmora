@@ -48,6 +48,7 @@ export default function DeliveryBox({ product }: { product: Product }) {
               ? `Made to order in ${plural(product.lead_time_days, "day")}.`
               : "Ready to ship."}
           </p>
+          {/* cacheComponents: the box is prerendered; only today's dates stream in per request. */}
           <Suspense fallback={<div className="mt-4 min-h-24" />}>
             <TodayDates product={product} />
           </Suspense>

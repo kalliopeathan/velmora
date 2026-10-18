@@ -54,6 +54,7 @@ export async function POST(request: Request) {
     );
   }
 
+  // 503, not 500: the client reads it as "use the list form", which needs no model.
   const ai = client();
   if (!ai) return Response.json({ type: "message", text: UNAVAILABLE_TEXT }, { status: 503 });
 

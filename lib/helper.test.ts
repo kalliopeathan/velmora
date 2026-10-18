@@ -1,3 +1,4 @@
+// Tests for the helper's code steps in lib/helper.ts (no model calls).
 import { test, expect } from "vitest";
 import {
   allOccasions,

@@ -1,4 +1,5 @@
 // Delivery maths. Pure functions, UTC calendar dates only.
+// UTC so a date never shifts with the server's or the shopper's time zone.
 //
 // Arrival  = order date + lead_time_days + shipping (min/max).
 // Order-by = event date − (lead_time_days + max shipping).

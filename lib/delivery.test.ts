@@ -1,3 +1,4 @@
+// Tests for the delivery maths in lib/delivery.ts.
 import { test, expect } from "vitest";
 import { arrivalWindow, orderByDate, getStatus, nextDate } from "./delivery";
 import { getProduct } from "./products";
